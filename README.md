@@ -25,7 +25,10 @@ git clone https://github.com/BenRichey2/podcast-indexer.git
 ```
 Install the requirements
 ```bash
-cd podcast-indexer && python3 -m pip install -r requirements.txt
+cd podcast-indexer && \
+python3 -m venv venv && \
+source venv/bin/activate && \
+python3 -m pip install -r requirements.txt
 ```
 
 NOTE: The above commands work for MacOS/Linux. You also must have Python installed on
