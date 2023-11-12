@@ -1,6 +1,8 @@
 import psycopg2
 import pprint
 import moviepy.editor as mp
+import subprocess
+import os
 
 METADATA = {
     "EP_DATE": None,
@@ -19,16 +21,16 @@ def video_to_audo():
     clip.audio.write_audiofile(audio_file)
 
 def transcribe():
-    audo_file = input("Please enter path to audio file: ")
-    model = whisper.load_model("small")
+    audio_file = input("Please enter path to audio file: ")
     print(f"Transcribing. This may take a while...")
-    result = model.transcribe(audo_file)
-    text = result["text"]
-    prefix = audo_file.split(".")
+    prefix = os.path.splitext(audio_file)
     text_file = prefix[0] + ".txt"
-    with open(text_file, "w+") as f:
-        f.write(text)
+    cmd_str = f"./whisper.cpp/main --model ./whisper.cpp/models/ggml-large.bin -f {audio_file} --output-txt {text_file} --output-json"
+    print(cmd_str)
+    subprocess.run(cmd_str, shell=True)
     print(f"Saved transcript to {text_file}")
+    with open(text_file, "r") as f:
+        text = f.readlines()
     return text
 
 def gen_insert_cmd(text: str):
