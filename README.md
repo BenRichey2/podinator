@@ -30,6 +30,9 @@ python3 -m venv venv && \
 source venv/bin/activate && \
 python3 -m pip install -r requirements.txt
 ```
+You'll also need to install a library called [`ffmpeg`](https://www.ffmpeg.org/) to
+facilitate conversion from `.mp3` to `.wav`, which is needed for `whisper.cpp` to work.
+Your best bet is to search online the best way to install `ffmpeg` for your OS.
 
 NOTE: The above commands work for MacOS/Linux. You also must have Python installed on
 your host. This was written with Python3.11, so YMMV for any other versions.
