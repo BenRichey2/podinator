@@ -3,6 +3,9 @@ import logging
 import os
 import uuid
 import progressbar
+import shutil
+import moviepy.editor as mp
+from pydub import AudioSegment
 
 
 VALID_DOWNLOAD_CONTENT_TYPES = {
@@ -15,6 +18,7 @@ TIMEOUT = MINUTES * 60
 CHUNK_SIZE = 2 * 1024 * 1024
 LOG_LEVEL = "INFO"
 DOWNLOAD_DIR = "/Users/benrichey/Downloads"
+DATA_DIR = "/Users/benrichey/src/podinator/data"
 
 progressbar.streams.wrap_stderr()
 progressbar.streams.wrap_stdout()
@@ -42,6 +46,69 @@ class Podinator:
         self.timeout = TIMEOUT
         self.chunk_size = CHUNK_SIZE
         self.download_dir = DOWNLOAD_DIR
+        self.data_dir = DATA_DIR
+        self.audio_dir = os.path.join(self.data_dir, "audio")
+        self.transcript_dir = os.path.join(self.data_dir, "transcripts")
+        try:
+            if not os.path.exists(self.download_dir):
+                os.mkdir(self.download_dir)
+            if not os.path.exists(self.data_dir):
+                os.mkdir(self.data_dir)
+            if not os.path.exists(self.audio_dir):
+                os.mkdir(self.audio_dir)
+            if not os.path.exists(self.transcript_dir):
+                os.mkdir(self.transcript_dir)
+        except FileNotFoundError as err:
+            self.LOG.error(
+                f"Failed to initialize local files. Cannot function properly.\n{err}"
+            )
+            exit(-1)
+
+    def convert_to_wav(self, filepath: str) -> str:
+        """
+        Given a path to a file that is one of the valid file formats, convert it to
+        .wav format (as required by whisper.cpp). NOTE: this won't work if the file
+        isn't a valid format.
+        @param filepath: path to podcast content
+        @return: path to .wav file if success, empty string on failure
+        """
+        if not os.path.exists(filepath):
+            self.LOG.error(
+                f"Failed to convert {filepath} to .wav format. "
+                + "File does not exist."
+            )
+            return ""
+        extension = os.path.splitext(filepath)[1]
+        if extension not in self.valid_download_content_types.values():
+            self.LOG.error(
+                f"Failed to convert {filepath} to .wav format. Invalid extension type: "
+                + f"'{extension}'. Expected one of: "
+                + f"{self.valid_download_content_types.values()}"
+            )
+            return ""
+        if extension == ".wav":
+            return self.wav_to_wav(filepath=filepath)
+        elif extension == ".mp4":
+            return self.mp4_to_wav(filepath=filepath)
+        else:
+            return self.mp3_to_wav(filepath=filepath)
+
+    def wav_to_wav(self, filepath: str) -> str:
+        filename = os.path.basename(filepath)
+        shutil.copy(filepath, os.path.join(self.audio_dir, filename))
+        return os.path.join(self.audio_dir, filename)
+
+    def mp4_to_wav(self, filepath: str) -> str:
+        filename = os.path.splitext(os.path.basename(filepath))[0] + ".wav"
+        with mp.VideoFileClip(filepath) as clip:
+            clip.audio.write_audiofile(os.path.join(self.audio_dir, filename))
+        return os.path.join(self.audio_dir, filename)
+
+    def mp3_to_wav(self, filepath: str) -> str:
+        audio = AudioSegment.from_mp3(filepath)
+        filename = os.path.splitext(os.path.basename(filepath))[0] + ".wav"
+        audio.export(os.path.join(self.audio_dir, filename), format="wav")
+        return os.path.join(self.audio_dir, filename)
 
     def download_podcast_from_url(self, url: str) -> str:
         """
@@ -128,7 +195,8 @@ class Podinator:
 
 if __name__ == "__main__":
     podinator = Podinator()
-    podinator.download_podcast_from_url(
+    filename = podinator.download_podcast_from_url(
         url="https://audioboom.com/posts/8396915-173-the-band-is-back-together.mp3?download=1"
     )
+    podinator.convert_to_wav(filepath=filename)
 
