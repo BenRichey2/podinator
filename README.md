@@ -1,6 +1,6 @@
-# Podcast Indexer
+# Podinator
 Ever wished to share a specific podcast moment but struggled to find it? Say goodbye to
-endless searching! With Podcast Indexer, simply upload your audio/video file
+endless searching! With Podinator, simply upload your audio/video file
 (.mp4/.mp3/.wav) or share a link. The tool transcribes the content, generates a search
 index, and allows you to type in a description of the clip you're looking for- saving you
 time and ensuring you never miss that favorite podcast moment again!

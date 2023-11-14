@@ -21,11 +21,11 @@ progressbar.streams.wrap_stdout()
 logging.basicConfig()
 
 
-class PodcastIndexer:
+class Podinator:
     """
-    Podcast Indexer
+    Podinator
 
-    A one-stop-shop class for handling all the wonderful features Podcast Indexer
+    A one-stop-shop class for handling all the wonderful features Podinator
     has. This includes starting the web server for serving the front-end web UI, and
     handling any/all requests that come from that web UI including:
         - downloading podcast content
@@ -127,8 +127,8 @@ class PodcastIndexer:
 
 
 if __name__ == "__main__":
-    podcast_indexer = PodcastIndexer()
-    podcast_indexer.download_podcast_from_url(
+    podinator = Podinator()
+    podinator.download_podcast_from_url(
         url="https://audioboom.com/posts/8396915-173-the-band-is-back-together.mp3?download=1"
     )
 
