@@ -6,6 +6,8 @@ import progressbar
 import shutil
 import moviepy.editor as mp
 from pydub import AudioSegment
+import subprocess
+import json
 
 
 VALID_DOWNLOAD_CONTENT_TYPES = {
@@ -19,6 +21,7 @@ CHUNK_SIZE = 2 * 1024 * 1024
 LOG_LEVEL = "INFO"
 DOWNLOAD_DIR = "/Users/benrichey/Downloads"
 DATA_DIR = "/Users/benrichey/src/podinator/data"
+WHISPER_MODEL = "large"
 
 progressbar.streams.wrap_stderr()
 progressbar.streams.wrap_stdout()
@@ -49,6 +52,8 @@ class Podinator:
         self.data_dir = DATA_DIR
         self.audio_dir = os.path.join(self.data_dir, "audio")
         self.transcript_dir = os.path.join(self.data_dir, "transcripts")
+        self.whisper_path = os.path.join(os.getcwd(), "whisper.cpp")
+        self.whisper_model = WHISPER_MODEL
         try:
             if not os.path.exists(self.download_dir):
                 os.mkdir(self.download_dir)
@@ -63,6 +68,7 @@ class Podinator:
                 f"Failed to initialize local files. Cannot function properly.\n{err}"
             )
             exit(-1)
+        self.setup_whisper()
 
     def convert_to_wav(self, filepath: str) -> str:
         """
@@ -106,6 +112,7 @@ class Podinator:
 
     def mp3_to_wav(self, filepath: str) -> str:
         audio = AudioSegment.from_mp3(filepath)
+        audio = audio.set_frame_rate(16000)
         filename = os.path.splitext(os.path.basename(filepath))[0] + ".wav"
         audio.export(os.path.join(self.audio_dir, filename), format="wav")
         return os.path.join(self.audio_dir, filename)
@@ -192,6 +199,110 @@ class Podinator:
                                       widgets=widgets).start()
         return bar
 
+    def transcribe(self, wav_file_path: str) -> str:
+        """
+        Use pre-compiled whisper.cpp executable to transcribe .wav file into timestamped
+        JSON file and store it in the transcript directory.
+        @param wav_file_path: path to .wav file
+        @return: timestamped transcript in JSON format
+        """
+        filename = os.path.splitext(os.path.basename(wav_file_path))[0]
+        json_file = os.path.join(self.transcript_dir, filename)
+        cmd_str = (
+            "./whisper.cpp/main --model "
+            + f"./whisper.cpp/models/ggml-{self.whisper_model}.bin "
+            + f"-f {wav_file_path} --output-file {json_file} --output-json"
+        )
+        self.LOG.info(cmd_str)
+        subprocess.run(cmd_str, shell=True)
+        self.LOG.info(f"Saved transcript to {json_file}.json")
+        with open(json_file + ".json", "r") as f:
+            text = json.load(f)
+        return text
+
+    def check_for_whisper_cpp_main(self,) -> bool:
+        if not os.path.exists(os.path.join(self.whisper_path, "main")):
+            self.LOG.info(
+                "whisper.cpp main executable not found at: "
+                + f"{os.path.join(self.whisper_path, 'main')}. Building. "
+                + "This may take a while."
+            )
+            return False
+        self.LOG.info("whisper.cpp main executable found.")
+        return True
+
+    def check_for_whisper_cpp_init(self,) -> bool:
+        whisper_cpp_makefile = os.path.join(self.whisper_path, "Makefile")
+        if not os.path.exists(whisper_cpp_makefile):
+            self.LOG.info(
+                "whisper.cpp submodule not found at: "
+                + f"{os.path.join(os.getcwd(), 'whisper.cpp')}. Initializing."
+            )
+            return False
+        self.LOG.info("whisper.cpp submodule is initialized.")
+        return True
+
+    def check_for_whisper_model(self,) -> bool:
+        whisper_model_path = os.path.join(
+            os.path.join(self.whisper_path, "models"),
+            "ggml-" + self.whisper_model + ".bin"
+        )
+        if not os.path.exists(whisper_model_path):
+            self.LOG.info(
+                f"whisper model: '{whisper_model_path}' not found. "
+                + "Downloading. This may take a while."
+            )
+            return False
+        self.LOG.info("whisper model found.")
+        return True
+
+    def init_whisper_cpp(self,):
+        cmd_str = "git submodule update --init --recursive"
+        self.LOG.info(cmd_str)
+        ret = subprocess.run(cmd_str, shell=True)
+        if ret.returncode != 0 or not self.check_for_whisper_cpp_init():
+            self.LOG.error(
+                "An error occurred when trying to initialize whisper.cpp. "
+                + "Cannot recover. Exiting."
+            )
+            exit(-1)
+        self.LOG.info("whisper.cpp submodule initialized.")
+
+    def download_whisper_model(self,):
+        download_script = os.path.join(
+            os.path.join(self.whisper_path, "models"),
+            "download-ggml-model.sh"
+        )
+        cmd_str = f"bash {download_script} {self.whisper_model}"
+        self.LOG.info(cmd_str)
+        ret = subprocess.run(cmd_str, shell=True)
+        if ret.returncode != 0 or not self.check_for_whisper_model():
+            self.LOG.error(
+                "An error occurred when trying to download whisper model: "
+                + f"{self.whisper_model}. Cannot recover. Exiting."
+            )
+            exit(-1)
+        self.LOG.info("Successfully downloaded whisper model.")
+
+    def build_whisper_cpp_main(self,):
+        cmd_str = f"cd {self.whisper_path} && make"
+        self.LOG.info(cmd_str)
+        ret = subprocess.run(cmd_str, shell=True)
+        if ret.returncode != 0 or not self.check_for_whisper_cpp_main():
+            self.LOG.error(
+                "Failed to build whisper.cpp main executable. Cannot recover. Exiting."
+            )
+            exit(-1)
+        self.LOG.info("Successfully built whisper.cpp main executable.")
+
+    def setup_whisper(self,):
+        if not self.check_for_whisper_cpp_init():
+            self.init_whisper_cpp()
+        if not self.check_for_whisper_model():
+            self.download_whisper_model()
+        if not self.check_for_whisper_cpp_main():
+            self.build_whisper_cpp_main()
+
 
 if __name__ == "__main__":
     podinator = Podinator()
@@ -199,4 +310,6 @@ if __name__ == "__main__":
         url="https://audioboom.com/posts/8396915-173-the-band-is-back-together.mp3?download=1"
     )
     podinator.convert_to_wav(filepath=filename)
+    filepath = podinator.convert_to_wav(filepath=filename)
+    podinator.transcribe(wav_file_path=filepath)
 
