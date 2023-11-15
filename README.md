@@ -21,11 +21,11 @@ features listed here are goals, but not currently implemented.
 ## Install
 Clone this repository:
 ```bash
-git clone https://github.com/BenRichey2/podcast-indexer.git
+git clone https://github.com/BenRichey2/podinator.git
 ```
 Install the requirements
 ```bash
-cd podcast-indexer && \
+cd podinator && \
 python3 -m venv venv && \
 source venv/bin/activate && \
 python3 -m pip install -r requirements.txt
@@ -35,7 +35,8 @@ facilitate conversion from `.mp3` to `.wav`, which is needed for `whisper.cpp` t
 Your best bet is to search online the best way to install `ffmpeg` for your OS.
 
 NOTE: The above commands work for MacOS/Linux. You also must have Python installed on
-your host. This was written with Python3.11, so YMMV for any other versions.
+your host. This was written with Python3.11 on an M2 macbook, so YMMV for any other
+versions and OS's.
 
 ## Usage
 TODO
