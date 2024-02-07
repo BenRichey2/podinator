@@ -2,12 +2,12 @@ import requests
 import logging
 import os
 import uuid
-import progressbar
 import shutil
 import moviepy.editor as mp
 from pydub import AudioSegment
 import subprocess
 import json
+from tqdm import tqdm
 
 
 VALID_DOWNLOAD_CONTENT_TYPES = {
@@ -23,8 +23,6 @@ DOWNLOAD_DIR = "/Users/benrichey/Downloads"
 DATA_DIR = "/Users/benrichey/src/podinator/data"
 WHISPER_MODEL = "large-v3"
 
-progressbar.streams.wrap_stderr()
-progressbar.streams.wrap_stdout()
 logging.basicConfig()
 
 
@@ -162,18 +160,14 @@ class Podinator:
                 + f"{response.headers['Content-Type']}"
             )
             return ""
-        progress_bar = self.new_progressbar(
-            max_val=int(response.headers["Content-Length"])
-        )
         data_written = 0
         with open(os.path.join(self.download_dir, filename), "wb") as f:
-            for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
+            total_iters = int(int(response.headers["Content-Length"]) / CHUNK_SIZE)
+            for chunk in tqdm(response.iter_content(chunk_size=CHUNK_SIZE), total=total_iters):
                 f.write(chunk)
                 data_written += self.chunk_size
                 if data_written > int(response.headers["Content-Length"]):
                     data_written = int(response.headers["Content-Length"])
-                progress_bar.update(data_written)
-        progress_bar.finish()
         self.LOG.info(
             f"File from {url} downloaded to "
             + f"{os.path.join(self.download_dir, filename)}"
@@ -190,14 +184,6 @@ class Podinator:
             return self.valid_download_content_types[type]
         else:
             return ""
-
-    def new_progressbar(self, max_val: int) -> progressbar.ProgressBar:
-        widgets = [progressbar.Bar('*'), ' (',
-                   progressbar.ETA(), ') ',
-                   ]
-        bar = progressbar.ProgressBar(maxval=max_val,
-                                      widgets=widgets).start()
-        return bar
 
     def transcribe(self, wav_file_path: str) -> str:
         """
