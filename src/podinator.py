@@ -21,7 +21,7 @@ CHUNK_SIZE = 2 * 1024 * 1024
 LOG_LEVEL = "INFO"
 DOWNLOAD_DIR = "/Users/benrichey/Downloads"
 DATA_DIR = "/Users/benrichey/src/podinator/data"
-WHISPER_MODEL = "large"
+WHISPER_MODEL = "large-v3"
 
 progressbar.streams.wrap_stderr()
 progressbar.streams.wrap_stdout()
